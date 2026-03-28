@@ -7,4 +7,6 @@ pymysql
 psycopg2-binary
 langchain
 langchain-community
+langchain-openai
 python-dotenv
+aiofiles
