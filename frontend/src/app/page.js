@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react"
 
+const API = process.env.NEXT_PUBLIC_API_URL
+
 // ── Simple Markdown Renderer ──────────────────────────────────────────────────
 function renderMarkdown(text) {
   const lines = text.split("\n")
@@ -12,40 +14,33 @@ function renderMarkdown(text) {
   while (i < lines.length) {
     const line = lines[i]
 
-    // Skip empty lines between blocks
     if (line.trim() === "") { i++; continue }
 
-    // Heading 3
     if (line.startsWith("### ")) {
       elements.push(<h3 key={key++} className="md-h3">{inlineMarkdown(line.slice(4))}</h3>)
       i++; continue
     }
 
-    // Heading 2
     if (line.startsWith("## ")) {
       elements.push(<h2 key={key++} className="md-h2">{inlineMarkdown(line.slice(3))}</h2>)
       i++; continue
     }
 
-    // Heading 1
     if (line.startsWith("# ")) {
       elements.push(<h1 key={key++} className="md-h1">{inlineMarkdown(line.slice(2))}</h1>)
       i++; continue
     }
 
-    // Horizontal rule
     if (/^[-*_]{3,}$/.test(line.trim())) {
       elements.push(<hr key={key++} className="md-hr" />)
       i++; continue
     }
 
-    // Numbered list — collect consecutive items
     if (/^\d+\.\s/.test(line)) {
       const items = []
       while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
         items.push(<li key={key++}>{inlineMarkdown(lines[i].replace(/^\d+\.\s/, ""))}</li>)
         i++
-        // Sub-items (indented bullet under numbered)
         while (i < lines.length && /^\s+[-*]\s/.test(lines[i])) {
           items.push(
             <li key={key++} className="md-subitem">
@@ -59,7 +54,6 @@ function renderMarkdown(text) {
       continue
     }
 
-    // Bullet list — collect consecutive items
     if (/^[-*+]\s/.test(line)) {
       const items = []
       while (i < lines.length && /^[-*+]\s/.test(lines[i])) {
@@ -70,7 +64,6 @@ function renderMarkdown(text) {
       continue
     }
 
-    // Code block
     if (line.startsWith("```")) {
       const lang = line.slice(3).trim()
       const codeLines = []
@@ -79,7 +72,7 @@ function renderMarkdown(text) {
         codeLines.push(lines[i])
         i++
       }
-      i++ // consume closing ```
+      i++
       elements.push(
         <div key={key++} className="md-code-block">
           {lang && <span className="md-code-lang">{lang}</span>}
@@ -89,7 +82,6 @@ function renderMarkdown(text) {
       continue
     }
 
-    // Paragraph
     const paraLines = []
     while (i < lines.length && lines[i].trim() !== "" && !/^(#{1,3} |[-*+]\s|\d+\.\s|```|[-*_]{3,})/.test(lines[i])) {
       paraLines.push(lines[i])
@@ -105,10 +97,8 @@ function renderMarkdown(text) {
   return elements
 }
 
-// Inline: **bold**, *italic*, `code`, links
 function inlineMarkdown(text) {
   const parts = []
-  // Pattern: bold, italic, inline code
   const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g
   let last = 0, match
   let k = 0
@@ -123,7 +113,6 @@ function inlineMarkdown(text) {
   return parts.length > 0 ? parts : text
 }
 
-// ── Typewriter with Markdown ──────────────────────────────────────────────────
 function TypewriterMarkdown({ text, speed = 8 }) {
   const [displayed, setDisplayed] = useState("")
   const [done, setDone] = useState(false)
@@ -131,7 +120,6 @@ function TypewriterMarkdown({ text, speed = 8 }) {
     setDisplayed("")
     setDone(false)
     let i = 0
-    // Render in chunks for smoother feel
     const iv = setInterval(() => {
       if (i < text.length) {
         i = Math.min(i + 3, text.length)
@@ -151,7 +139,6 @@ function TypewriterMarkdown({ text, speed = 8 }) {
   )
 }
 
-// ── Data Sources ──────────────────────────────────────────────────────────────
 const dataSources = [
   {
     id: "sqlite", name: "SQLite", label: "File Upload", accept: ".db", placeholder: null, color: "#0ea5e9", bg: "#f0f9ff",
@@ -179,7 +166,6 @@ const dataSources = [
   },
 ]
 
-// ── Main Component ────────────────────────────────────────────────────────────
 export default function Home() {
   const [activeTab, setActiveTab] = useState("sqlite")
   const [file, setFile] = useState(null)
@@ -216,11 +202,11 @@ export default function Home() {
       if (isFileSource) {
         const form = new FormData()
         form.append("file", file)
-        res = await fetch("http://127.0.0.1:8000" + endpoint, { method: "POST", body: form })
+        res = await fetch(API + endpoint, { method: "POST", body: form })
       } else if (isUrlSource) {
-        res = await fetch("http://127.0.0.1:8000" + endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: urlValue }) })
+        res = await fetch(API + endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: urlValue }) })
       } else {
-        res = await fetch("http://127.0.0.1:8000" + endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conn_str: connStr }) })
+        res = await fetch(API + endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conn_str: connStr }) })
       }
       const data = await res.json()
       setDbName(data.db_name)
@@ -239,7 +225,7 @@ export default function Home() {
     setAnswer("")
     setAnimateAnswer(false)
     try {
-      const res = await fetch("http://127.0.0.1:8000/query", {
+      const res = await fetch(API + "/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: q, db_name: dbName })
@@ -260,7 +246,6 @@ export default function Home() {
     ? (dbName.split("///")[1]?.split("/").pop() || dbName.split("/").pop() || dbName)
     : null
 
-  // Strip markdown for history preview
   const stripMd = (t) => t.replace(/[*_`#>]/g, "").replace(/\n/g, " ").trim()
 
   return (
@@ -269,12 +254,10 @@ export default function Home() {
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'DM Sans', sans-serif; background: #0a0f1e; color: #e2e8f0; min-height: 100vh; }
-
         .app-shell { min-height: 100vh; background: #080c18; position: relative; overflow-x: hidden; }
         .bg-grid { position: fixed; inset: 0; background-image: linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px); background-size: 48px 48px; pointer-events: none; z-index: 0; }
         .bg-glow { position: fixed; top: -200px; left: 50%; transform: translateX(-50%); width: 900px; height: 600px; background: radial-gradient(ellipse, rgba(99,102,241,0.12) 0%, transparent 70%); pointer-events: none; z-index: 0; }
         .content { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
-
         header { display: flex; align-items: center; justify-content: space-between; padding: 28px 0 0; margin-bottom: 56px; }
         .logo-group { display: flex; align-items: center; gap: 12px; }
         .logo-mark { width: 38px; height: 38px; background: linear-gradient(135deg, #6366f1, #818cf8); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(99,102,241,0.4); }
@@ -284,22 +267,18 @@ export default function Home() {
         .header-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
         .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981; animation: pulse 2s ease-in-out infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
         .hero { text-align: center; margin-bottom: 64px; }
         .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: #818cf8; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); padding: 6px 14px; border-radius: 100px; margin-bottom: 24px; letter-spacing: 0.4px; text-transform: uppercase; }
         .hero-title { font-family: 'Syne', sans-serif; font-size: clamp(36px, 5vw, 60px); font-weight: 700; line-height: 1.05; letter-spacing: -1.5px; color: #f8fafc; margin-bottom: 16px; }
         .hero-title span { background: linear-gradient(135deg, #6366f1 0%, #a5b4fc 50%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .hero-sub { font-size: 17px; color: #64748b; font-weight: 300; line-height: 1.6; max-width: 480px; margin: 0 auto; }
-
         .workspace { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
         @media (max-width: 820px) { .workspace { grid-template-columns: 1fr; } }
-
         .panel { background: rgba(15,20,40,0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; overflow: hidden; backdrop-filter: blur(12px); }
         .panel-header { padding: 20px 24px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 10px; }
         .panel-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
         .panel-icon svg { width: 16px; height: 16px; }
         .panel-title { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; }
-
         .source-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 20px; }
         .source-btn { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.02); cursor: pointer; transition: all 0.2s ease; outline: none; text-align: center; }
         .source-btn:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.14); transform: translateY(-1px); }
@@ -309,7 +288,6 @@ export default function Home() {
         .source-name { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600; color: #94a3b8; letter-spacing: 0.3px; transition: color 0.2s; }
         .source-btn.active .source-name { color: #a5b4fc; }
         .active-pip { position: absolute; top: 8px; right: 8px; width: 5px; height: 5px; border-radius: 50%; background: #6366f1; box-shadow: 0 0 6px #6366f1; }
-
         .connect-area { padding: 0 20px 20px; }
         .connect-label { font-size: 11px; font-weight: 500; color: #475569; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; display: block; }
         .drop-zone { border: 1.5px dashed rgba(99,102,241,0.25); border-radius: 14px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(99,102,241,0.03); margin-bottom: 12px; }
@@ -328,7 +306,6 @@ export default function Home() {
         .connect-btn:disabled { background: rgba(255,255,255,0.05); color: #334155; cursor: not-allowed; }
         .connection-badge { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 14px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); border-radius: 10px; font-size: 12px; color: #34d399; font-weight: 500; }
         .connection-badge svg { width: 14px; height: 14px; }
-
         .query-panel { display: flex; flex-direction: column; gap: 16px; }
         .query-box { background: rgba(15,20,40,0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; overflow: hidden; backdrop-filter: blur(12px); }
         .query-input-wrap { padding: 20px 24px; display: flex; gap: 12px; align-items: flex-end; border-bottom: 1px solid rgba(255,255,255,0.04); }
@@ -342,8 +319,6 @@ export default function Home() {
         .query-hints { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 24px; }
         .hint-chip { font-size: 11px; color: #475569; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 100px; padding: 5px 12px; cursor: pointer; transition: all 0.18s; font-weight: 400; }
         .hint-chip:hover { color: #818cf8; border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.07); }
-
-        /* ── ANSWER BOX ── */
         .answer-box { background: rgba(15,20,40,0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; overflow: hidden; backdrop-filter: blur(12px); }
         .answer-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .answer-label { display: flex; align-items: center; gap: 8px; font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; }
@@ -351,8 +326,6 @@ export default function Home() {
         .answer-scroll { max-height: 480px; overflow-y: auto; padding: 24px 28px; scrollbar-width: thin; scrollbar-color: rgba(99,102,241,0.2) transparent; }
         .answer-scroll::-webkit-scrollbar { width: 4px; }
         .answer-scroll::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius: 4px; }
-
-        /* ── MARKDOWN STYLES ── */
         .md-body { font-family: 'DM Sans', sans-serif; font-size: 14px; line-height: 1.75; color: #cbd5e1; }
         .md-h1 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; color: #f1f5f9; margin: 20px 0 10px; letter-spacing: -0.3px; }
         .md-h2 { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 600; color: #e2e8f0; margin: 18px 0 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(99,102,241,0.2); letter-spacing: -0.2px; }
@@ -375,16 +348,12 @@ export default function Home() {
         .md-code-block pre { padding: 14px; overflow-x: auto; }
         .md-code-block code { font-family: 'DM Mono', monospace; font-size: 12px; color: #a5b4fc; line-height: 1.65; }
         .md-inline-code { font-family: 'DM Mono', monospace; font-size: 12px; background: rgba(99,102,241,0.12); color: #a5b4fc; padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(99,102,241,0.2); }
-
-        /* ── HISTORY ── */
         .history-box { background: rgba(15,20,40,0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; overflow: hidden; backdrop-filter: blur(12px); }
         .history-item { padding: 14px 24px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: background 0.15s; }
         .history-item:last-child { border-bottom: none; }
         .history-item:hover { background: rgba(255,255,255,0.02); }
         .history-q { font-size: 12px; color: #64748b; margin-bottom: 3px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .history-a { font-size: 11px; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        /* ── SPINNER / THINKING ── */
         .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.15); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .thinking-dots { display: flex; gap: 4px; align-items: center; padding: 24px; }
@@ -394,8 +363,6 @@ export default function Home() {
         @keyframes blink { 0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
         .cursor-blink { display: inline-block; animation: cur 1s steps(1) infinite; color: #6366f1; }
         @keyframes cur { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-
-        /* ── EMPTY STATE ── */
         .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; text-align: center; gap: 12px; }
         .empty-icon { width: 48px; height: 48px; border-radius: 16px; background: rgba(99,102,241,0.1); display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
         .empty-icon svg { width: 24px; height: 24px; color: #6366f1; opacity: 0.7; }
